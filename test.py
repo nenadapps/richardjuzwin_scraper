@@ -1,7 +1,8 @@
-import csv
 import datetime
 from urllib.request import Request, urlopen
 from bs4 import BeautifulSoup
+from time import sleep
+from random import randint,shuffle
 
 def get_html(url):
     html_content = ''
@@ -20,7 +21,9 @@ def get_category_items(category_url):
         category_html = get_html(category_url)
         for item in category_html.select('.woocommerce-loop-product__link'):
             items.append(item.get('href'))
-    except: 
+        shuffle(items)
+    except:
+
         pass
 
     return items
@@ -34,9 +37,16 @@ def get_categories():
         for category_item in category_items:
             item = category_item.find('a').get('href')
             items.append(item)
+        shuffle(items)
     except: 
-        pass
- 
+        try:
+            print('long sleep')
+            sleep(randint(800,1500))
+            req = Request(url, headers={'User-Agent':'Mozilla/5.0'}, timeout=60)
+            html_page = urlopen(req).read()
+            html_content = BeautifulSoup(html_page, "html.parser")
+        except:
+            pass
     return items
 
 def get_details(url):
@@ -69,7 +79,7 @@ def get_details(url):
 
     try:
         raw_text = html.find_all("div", {"class":"woocommerce-product-details__short-description"})[0].get_text()
-        stamp['raw_text'] = raw_text.replace('¬†','.') # I believe uft-8 isn't the right encoding for this website.
+        stamp['raw_text'] = raw_text
     except:
         stamp['raw_text'] = None
 
@@ -84,12 +94,10 @@ def get_details(url):
     stamp['currency'] = currency
 
     # image_urls should be a list
-    images = ""
+    images = []
     try:
         for img in html.select('.woocommerce-product-gallery img'):
-            if(images):
-                images = images + ','
-            images = images + img.get('src')
+            images.append(img.get('src'))
     except:
          pass 
 
@@ -100,12 +108,11 @@ def get_details(url):
     stamp['scrape_date'] = scrape_date
 
     stamp['url'] = url
-
+    print(stamp)
+    print('+++++++++++++')
+    sleep(randint(27,119))
     return stamp
 
-# empty csv output file and write header
-f = csv.writer(open('results.csv', 'w', encoding="utf8", newline=""))
-f.writerow(['Name', 'Price', 'Currency','SKU', 'Scrape date', 'Category' , 'Raw text' , 'Image Urls' , 'Link'])
 
 # initialize stamps array
 stamps = []
@@ -118,7 +125,3 @@ for category in categories:
     for category_item in category_items:
         # get current item details 
         stamp = get_details(category_item)
-        if stamp:
-            stamps.append(stamp)
-            # write current item details in output csv 
-            f.writerow([stamp['title'], stamp['price'], stamp['currency'], stamp['sku'], stamp['scrape_date'], stamp['category'], stamp['raw_text'], stamp['image_urls'], stamp['url']])
